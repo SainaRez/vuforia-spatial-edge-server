@@ -132,20 +132,16 @@
 </body>
 <script>
     let spatialInterface = new SpatialInterface();
+    //realityInterface.initNode('storage', 'storeData');
 
     var frameMetadata = {}; // holds info about each step, such as isCompleted
-
-    var currentStepNumber = 0; // steps are 1-indexed. 0 means undefined.
+    
     var canvasUsed = false; // flag to only clear canvas if it has content
     var manuallySetStepNumber = 0;
     var didManuallySetStepNumber = false; // if we tap on a specific step number, jumps to that instead of first one
 
     var stepButtonWidth = 80; // properties to render the row step number icons
-    var stepNumberSelected;
-    var stepDivSelected;
-    var stepRenderingOrder;
     var stepStartPositionMap = {}; // important for reordering steps, keeps track of where they should all end up
-    var previousArrowStartX = 0; // used to animate/tween arrow x position when going to next step
 
 
     // 4. Include 'sequential-envelope-contents' in the list of the names of tools that can go inside this envelope
@@ -181,7 +177,7 @@
         
         if (!envelope.isOpen) {
             // only show 'Start Procedure' button if you've added any steps
-            var numFrames = envelope.frameIdOrdering.length;
+            //var numFrames = envelope.frameIdOrdering.length;
             //document.getElementById('playButton').style.display = (numFrames === 0) ? 'none' : '';
             
         } else {
@@ -207,6 +203,8 @@
     }
 
     function renderStepIcons() {
+        
+        
         envelope.frameIdOrdering.forEach(function(id) {
             if (typeof frameMetadata[id] === 'undefined') {
                 frameMetadata[id] = {};
@@ -238,6 +236,9 @@
             // position each step button so that the row is centered and they each have a margin between them
             stepButton.style.left = envelope.screenDimensions.width/2 - ((stepButtonWidth + margin)/2) * numSteps + (stepButtonWidth + margin) * index + 'px';
             // cache the center position of each to use when dragging them around to re-order
+            
+            console.log('stepButton.getClientRects(): ', stepButton.getClientRects()[0]);
+            
             stepStartPositionMap[stepNumber] = parseInt(stepButton.style.left) + stepButton.getClientRects()[0].width/2;
             // if completed, turns them green instead of blue
             if (frameMetadata[id].isCompleted) {
@@ -245,29 +246,6 @@
             }
         });
     }
-
-    /**
-     * Resets completion status of each step, and sends a message to collapse their UI if they are expanded
-     */
-     function resetStepProgress() {
-        currentStepNumber = 0;
-        didManuallySetStepNumber = false;
-        manuallySetStepNumber = 0;
-        Object.values(frameMetadata).forEach(function(frameData) {
-            frameData.isCompleted = false;
-        });
-        // for (var stepNumber = 1; stepNumber <= envelope.frameIdOrdering.length; stepNumber++) {
-        //     collapseStep(stepNumber);
-        // }
-        render();
-    }
-
- 
-    // 7. Add a touch event that opens up the envelope into fullscreen mode when the icon is tapped
-    rootElementWhenClosed.addEventListener('pointerup', function() {
-        rootElementWhenClosed.innerText = 'Try to open';
-        envelope.open();
-    });
 
     // // listen for isStepCompleted messages and screenPosition messages from steps
     // envelope.onMessageFromContainedFrame(function(message) {
@@ -287,6 +265,51 @@
     //         }
     //     }
 
+
+    /**
+     * Resets completion status of each step, and sends a message to collapse their UI if they are expanded
+     */
+    // function resetStepProgress() {
+    //     currentStepNumber = 0;
+    //     didManuallySetStepNumber = false;
+    //     manuallySetStepNumber = 0;
+    //     Object.values(frameMetadata).forEach(function(frameData) {
+    //         frameData.isCompleted = false;
+    //     });
+    //     // for (var stepNumber = 1; stepNumber <= envelope.frameIdOrdering.length; stepNumber++) {
+    //     //     collapseStep(stepNumber);
+    //     // }
+    //     render();
+    // }
+
+ 
+    // 7. Add a touch event that opens up the envelope into fullscreen mode when the icon is tapped
+    rootElementWhenClosed.addEventListener('pointerup', function() {
+        rootElementWhenClosed.innerText = 'Try to open';
+        envelope.open();
+    });
+
+    
+
+    /**
+     * Calculates which is the earliest step that hasn' tbeen completed yet. Or returns the manual step number, if you
+     * specifically tapped on one of the buttons.
+     */
+     function computeCurrentStepNumber() {
+        if (didManuallySetStepNumber) { // when you tap on one of the step buttons, override the auto calculation
+            return manuallySetStepNumber;
+        }
+
+        // walk through each step in order, starting from the first, and return as soon as you find one that isn't completed
+        var firstUncompletedStep = null;
+        envelope.frameIdOrdering.forEach(function(id, index) {
+            if (firstUncompletedStep) return; // only get the first one
+            if (!frameMetadata[id].isCompleted) {
+                firstUncompletedStep = index+1;
+            }
+        });
+        return firstUncompletedStep;
+    }
 
     /**
      * Shortcut for creating a div with certain style and contents, and possibly adding to a parent element
